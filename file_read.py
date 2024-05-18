@@ -46,12 +46,14 @@ def print_file_contents(file_path, file_name):
             # 주어진 SQL 문자열에서 placeholders를 실제 값으로 치환합니다.
             # kk2 = replace_placeholders(lines, var_key_map)
             print("#####################")
+            #문자열 리스트의 각 항목을 확인하여 행 마지막에 \가 있는 경우 한 줄로 합칩니다.
             combined_lines = combine_lines_with_backslash(lines)
+            combined_lines2 = update_save_dir(combined_lines)
             #print("combined_lines", combined_lines)
             line_num = 0
-            for line in combined_lines:
+            for line in combined_lines2:
                 line_num = line_num + 1
-                print("@@combined_lines", line_num, line)
+                print("@@combined_lines2", line_num, line)
 
     except FileNotFoundError:
         print(f'File not found: {full_file_path}')

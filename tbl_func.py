@@ -60,7 +60,7 @@ def remove_lines_with_substrings(file):
     """
 
     substrings = ['import ', 'appName(', '.config(', '.getArgs', 'ArgumentParser',  'SparkSession', 'os.path.basename',  'result_data', 'set hive.', 'job_rslt_cd', 'job_st_dtm'
-        , 'fail_message', '.setDevLog', 'writeStartExecLog', '.builder', 'enableHiveSupport','getOrCreate','print(', 'except Exception', 'finally:', 'exit(0)' , 'else:']
+        , 'fail_message', '.setDevLog', 'writeStartExecLog', '.builder', 'enableHiveSupport','getOrCreate','print(', 'except Exception', 'finally:', 'exit(0)' , 'else:', 'try:', 'add jar', 'create temporary function']
     filtered_lines = []
 
     for line in file:
@@ -113,7 +113,7 @@ def generate_table_db_map(file):
     for line in file:
         # print("tbl_func_line223", line)
         if ('=' in line and line.count('=') == 1 and '(' not in line and '\\' not in line and 'WHERE ' not in line.upper() and 'ON ' not in line.upper() and 'AND' not in line.upper()
-                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper()  )    :
+                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper() and 'END' not in line.upper() and 'SAVE_DIR' not in line.upper()  )    :  #
             # print("tbl_func_line11", line)
             # print("###generate_table_db_map1", line)
             var_name, value = line.split('=')
@@ -124,7 +124,7 @@ def generate_table_db_map(file):
             value_ori = value
             print("value", value)
             value = get_name(var_name, value)
-            print("###generate_table_db_map2", line,  var_name, value, value_ori)
+            # print("###generate_table_db_map2", line,  var_name, value, value_ori)
 
             var_key_map[var_name] = value
 
@@ -197,12 +197,17 @@ def preprocess_contents(key_map, file):
     return filtered_lines
 
 
+#문자열 리스트의 각 항목을 확인하여 행 마지막에 \가 있는 경우 한 줄로 합칩니다.
 def combine_lines_with_backslash(lines):
+
     result = []
     current_line = ""
     for line in lines:
         if line.endswith("\\"):
-            current_line += line[:-1].strip()
+            if "=" in line:
+                current_line += line[:-1].strip() + " "
+            else:
+                current_line += line[:-1].strip()
         else:
             if current_line:
                 current_line += line.strip()
@@ -212,6 +217,23 @@ def combine_lines_with_backslash(lines):
                 result.append(line)
     return result
 
+
+#save_dir을 정의하고, 후행 요소에서 해당 문자열을 사용하도록
+def update_save_dir(lines):
+
+    result = []
+    save_dir_var = ""
+    for line in lines:
+        if "save_dir" in line and "=" in line:
+            save_dir_var = "save_dir-" + line.split("=")[1].strip()
+        #print("####save_dir_var", save_dir_var)
+
+        if  line.startswith("df_") and ".write" in line:
+            #print("@@@save_dir_var", save_dir_var, line)
+            line = line.replace("save_dir", save_dir_var)
+        if not ("save_dir" in line and "=" in line):
+            result.append(line)
+    return result
 
 
 # sql_query = "SELECT * FROM table1 JOIN (SELECT * FROM table2) subquery ON table1.id = subquery.id"
@@ -247,6 +269,9 @@ def remove_comments(file):
         filtered_lines.append(line)
 
     return '\n'.join(filtered_lines)
+
+
+
 
 
 # This code is borrowed from sqlparse example script.
