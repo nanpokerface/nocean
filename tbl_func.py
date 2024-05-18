@@ -58,8 +58,9 @@ def remove_lines_with_substrings(file):
     Returns:
         str: 수정된 파일 내용
     """
+
     substrings = ['import ', 'appName(', '.config(', '.getArgs', 'ArgumentParser',  'SparkSession', 'os.path.basename',  'result_data', 'set hive.', 'job_rslt_cd', 'job_st_dtm'
-        , 'fail_message', '.setDevLog', 'writeStartExecLog', '.builder', 'enableHiveSupport','getOrCreate']
+        , 'fail_message', '.setDevLog', 'writeStartExecLog', '.builder', 'enableHiveSupport','getOrCreate','print(', 'except Exception', 'finally:', 'exit(0)' , 'else:']
     filtered_lines = []
 
     for line in file:
@@ -111,7 +112,8 @@ def generate_table_db_map(file):
 
     for line in file:
         # print("tbl_func_line223", line)
-        if '=' in line and line.count('=') == 1 and '(' not in line and '\\' not in line and 'WHERE ' not in line.upper() and 'ON ' not in line.upper() and 'AND' not in line.upper()  and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper():
+        if ('=' in line and line.count('=') == 1 and '(' not in line and '\\' not in line and 'WHERE ' not in line.upper() and 'ON ' not in line.upper() and 'AND' not in line.upper()
+                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper()  )    :
             # print("tbl_func_line11", line)
             # print("###generate_table_db_map1", line)
             var_name, value = line.split('=')
@@ -120,7 +122,7 @@ def generate_table_db_map(file):
             value = value.replace('"', '').replace("'", '')
             value = value.strip()
             value_ori = value
-            # print("value", value)
+            print("value", value)
             value = get_name(var_name, value)
             print("###generate_table_db_map2", line,  var_name, value, value_ori)
 
@@ -142,59 +144,20 @@ def generate_table_db_map(file):
     return var_key_map
 
 
-def preprocess_contents2(file):
-    """
-    SQL 문자열에서 `{}` 로 감싸진 문자열을 전처리합니다.
-
-    Args:
-        sql_str (str): 전처리할 SQL 문자열
-        key_map (dict): 키-값 매핑 정보
-
-    Returns:
-        str: 전처리된 SQL 문자열
-    """
-    print("kkk")
-
-
-def preprocess_contents(file):
-    def replace_placeholder(match):
+def preprocess_contents(key_map, file):
+    def replace_placeholder1(match):
         placeholder = match.group()
         parts = placeholder.split('.')
+        # print("preprocess_placeholder1", parts)
         if len(parts) > 1:
+            #print("preprocess_placeholder_여긴나오나", parts[1])
+            parts[1] = parts[1].replace("}", "")  # 'list' object has no attribute 'replace'
             return f"{{{parts[1]}}}"
         else:
+            # print("preprocess_placeholder2", placeholder)
             return placeholder
 
-    # 패턴 찾기 - {MartCfg.ACT_T}.CT_KIDS_HOUS_SEG_MONTH  -> {ACT_T}.CT_KIDS_HOUS_SEG_MONTH
-    pattern = re.compile(r'\{[\w.]+\}\.\{?\w+\}?')
-    filtered_lines = []
-    for line in file:
-        if re.search(pattern, line):
-            match = pattern.findall(line)
-            if match:
-                new_str = re.sub(r'\{[^}]+\.\w+\}', replace_placeholder, line)
-                filtered_lines.append(new_str)
-                # print("preprocess_contents2", new_str)
-        else:
-            filtered_lines.append(line)
-    return filtered_lines
-
-
-
-
-def replace_placeholders(sql_str, key_map):
-    """
-    주어진 SQL 문자열에서 placeholders를 실제 값으로 치환합니다.
-
-    Args:
-        sql_str (str): 플레이스홀더가 포함된 SQL 쿼리 문자열
-        key_map (dict): 플레이스홀더 치환 규칙이 포함된 딕셔너리
-
-    Returns:
-        str: 플레이스홀더가 치환된 SQL 쿼리 문자열
-    """
-    print("replace_placeholders", sql_str)
-    def replace_placeholder(match):
+    def replace_placeholder2(match):
         placeholder = match.group()
         for key, value in key_map.items():
             if key in placeholder:
@@ -204,18 +167,63 @@ def replace_placeholders(sql_str, key_map):
                     return f"{{{value}}}"
         return placeholder
 
-    return re.sub(r'\{[^}]+\}', replace_placeholder, sql_str)
+    # 패턴 찾기 - {MartCfg.ACT_T}.CT_KIDS_HOUS_SEG_MONTH  -> {ACT_T}.CT_KIDS_HOUS_SEG_MONTH
+    pattern = re.compile(r'\{[\w.]+\}\.\{?\w+\}?')
+    filtered_lines = []
+    line_num = 0
+    for line in file:
+        line_num  = line_num + 1
+        if re.search(pattern, line):
+            match = pattern.findall(line)
+            if match:
+                line = re.sub(r'\{[^}]+\.\w+\}', replace_placeholder1, line)
 
+        line = re.sub(r'\{[^}]+\}', replace_placeholder2, line)
+        if "_lower()"  in line:
+            pass
+            # print("@@_lower()", line_num, line)
+
+        line = line.replace("_lower()}","")
+        line = line.replace("CommonCfg.","")
+        line = line.replace("MartCfg.","")
+        line = line.replace("DwCfg.","")
+        line = re.sub(r"\t", "    ", line)  # TAB 값을 공백으로
+        line = line.rstrip()  # 오른쪽 공백 제거
+        if 'SPARK.STOP()' not in line.upper()  and '.WRITEDEVLOG' not in line.upper() and 'JOB_END_DTM' not in line.upper() and 'SPARK.UDF.' not in line.upper()  :
+            if line.strip():
+                filtered_lines.append(line)
+                #print("preprocess_contents", line_num, line)
+
+    return filtered_lines
+
+
+def combine_lines_with_backslash(lines):
+    result = []
+    current_line = ""
+    for line in lines:
+        if line.endswith("\\"):
+            current_line += line[:-1].strip()
+        else:
+            if current_line:
+                current_line += line.strip()
+                result.append(current_line)
+                current_line = ""
+            else:
+                result.append(line)
+    return result
 
 
 
 # sql_query = "SELECT * FROM table1 JOIN (SELECT * FROM table2) subquery ON table1.id = subquery.id"
-def remove_comments(sql):
+def remove_comments_gu(sql):
     print("remove_comments")
     # 한 줄 주석 제거
     if sql.strip().startswith('#') or sql.strip().startswith('//'):
         sql = re.sub(r''
-                     r'#.*$', '', sql, flags=re.MULTILINE)
+                     r'^#.*$', '', sql, flags=re.MULTILINE)
+        #다음 구문의 문제점은 , '#' A1_SVC_AGRMT_ID   같은 것도 지운다
+        # sql = re.sub(r''
+        #              r'#.*$', '', sql, flags=re.MULTILINE)
     # Remove single-line comments (--)
     sql = re.sub(r'--.*$', '', sql, flags=re.MULTILINE)
 
@@ -223,6 +231,22 @@ def remove_comments(sql):
     sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
 
     return sql
+
+
+def remove_comments(file):
+    filtered_lines = []
+
+    for line in file:
+        if line.strip().startswith('#') or line.strip().startswith('--'):
+            continue
+        line = re.sub(r'--.*$', '', line)
+
+        # Remove multi-line comments (/* */)
+        line = re.sub(r'/\*.*?\*/', '', line)
+        #print("###line2", line)
+        filtered_lines.append(line)
+
+    return '\n'.join(filtered_lines)
 
 
 # This code is borrowed from sqlparse example script.

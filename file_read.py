@@ -28,6 +28,7 @@ def print_file_contents(file_path, file_name):
         with open(full_file_path,  'rt', encoding=encoding) as f:
             print(f'File2: {file_name}')
             content = f.read()
+            content = content.split('\n')
             kk  = remove_comments(content)
             # print("@@kk", kk)
             lines = kk.split('\n')  # 파일의 내용을 줄 단위로 분할하여 리스트로 저장
@@ -40,15 +41,17 @@ def print_file_contents(file_path, file_name):
             print("@@JJ2", var_key_map)
 
 
-            kk2 = preprocess_contents(lines)
-            print("@@kk2", kk2)
+            lines = preprocess_contents(var_key_map, lines)
+            #print("@@kk2", kk2)
             # 주어진 SQL 문자열에서 placeholders를 실제 값으로 치환합니다.
             # kk2 = replace_placeholders(lines, var_key_map)
-
-            # for line in f:
-            #     line_num += 1
-            #     print(f'{line_num}: {line.strip()}')
-
+            print("#####################")
+            combined_lines = combine_lines_with_backslash(lines)
+            #print("combined_lines", combined_lines)
+            line_num = 0
+            for line in combined_lines:
+                line_num = line_num + 1
+                print("@@combined_lines", line_num, line)
 
     except FileNotFoundError:
         print(f'File not found: {full_file_path}')
