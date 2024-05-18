@@ -87,7 +87,7 @@ def get_name(var_name, value):
     schema_name = value
     if '.' in value:
         schema_name = value.split('.')[1]
-    schema_name = schema_name.replace('}', '')
+    schema_name = schema_name.replace('{', '').replace('}', '')
     if "DB" in var_name:
         if "_" in schema_name:
             if "IP_" in schema_name:
@@ -118,12 +118,14 @@ def generate_table_db_map(file):
             # print("###generate_table_db_map1", line)
             var_name, value = line.split('=')
             var_name = var_name.strip()
+            var_name = var_name.replace('{', '').strip()
 
-            value = value.replace('"', '').replace("'", '')
+            value = value.replace('f"', '').replace("f'", "").replace('"', '').replace("'", '')
             value = value.strip()
             value_ori = value
-            print("value", value)
+
             value = get_name(var_name, value)
+            # print("^^^value1", value)
             # print("###generate_table_db_map2", line,  var_name, value, value_ori)
 
             var_key_map[var_name] = value
@@ -238,14 +240,14 @@ def update_save_dir(lines):
 
 # sql_query = "SELECT * FROM table1 JOIN (SELECT * FROM table2) subquery ON table1.id = subquery.id"
 def remove_comments_gu(sql):
-    print("remove_comments")
+    print("remove_comments2")
     # 한 줄 주석 제거
     if sql.strip().startswith('#') or sql.strip().startswith('//'):
         sql = re.sub(r''
                      r'^#.*$', '', sql, flags=re.MULTILINE)
+    if sql.strip().startswith('spark.sql') :
         #다음 구문의 문제점은 , '#' A1_SVC_AGRMT_ID   같은 것도 지운다
-        # sql = re.sub(r''
-        #              r'#.*$', '', sql, flags=re.MULTILINE)
+        sql = re.sub(r'#.*$', '', sql, flags=re.MULTILINE)
     # Remove single-line comments (--)
     sql = re.sub(r'--.*$', '', sql, flags=re.MULTILINE)
 
@@ -261,6 +263,10 @@ def remove_comments(file):
     for line in file:
         if line.strip().startswith('#') or line.strip().startswith('--'):
             continue
+        if line.strip().startswith('spark.sql'):
+            # 다음 구문의 문제점은 , '#' A1_SVC_AGRMT_ID   같은 것도 지운다
+            line = re.sub(r'#.*$', '', line, flags=re.MULTILINE)
+
         line = re.sub(r'--.*$', '', line)
 
         # Remove multi-line comments (/* */)

@@ -72,3 +72,4 @@ for dir_path, dir_names, file_names in os.walk(path):
             file_name_with_path = os.path.join(dir_path, file_name)
             # print(f"File: {file_name_with_path}")
             print_file_contents(dir_path, file_name)
+ 
