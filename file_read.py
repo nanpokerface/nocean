@@ -31,10 +31,19 @@ def print_file_contents(file_path, file_name):
             kk  = remove_comments(content)
             # print("@@kk", kk)
             lines = kk.split('\n')  # 파일의 내용을 줄 단위로 분할하여 리스트로 저장
-            # 사용 예시
+
+            # 주어진 파일에서 여러 개의 문자열이 포함된 라인을 삭제하고 결과를 반환합니다.
             lines = remove_lines_with_substrings(lines)
+
+            # 주어진 파일에서 테이블과 데이터베이스 이름 매핑을 자동으로 생성합니다.
             var_key_map = generate_table_db_map(lines)
             print("@@JJ2", var_key_map)
+
+
+            kk2 = preprocess_contents(lines)
+            print("@@kk2", kk2)
+            # 주어진 SQL 문자열에서 placeholders를 실제 값으로 치환합니다.
+            # kk2 = replace_placeholders(lines, var_key_map)
 
             # for line in f:
             #     line_num += 1
