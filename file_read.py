@@ -2,6 +2,9 @@ import os
 import re
 import sys
 import logging
+# import tbl_func
+from tbl_func import *
+
 from datetime import datetime
 # path = "Z:\\총통합\\88.회사\\LDAS 제안서 작업\\분석\\업무분석\\20210531\\20210531"
 path = "Z:\\PycharmProjects\\gram_prj\\TEST_FILE\\aaa"
@@ -21,11 +24,21 @@ def print_file_contents(file_path, file_name):
 
     try:
         line_num = 0
+        var_key_map = {}
         with open(full_file_path,  'rt', encoding=encoding) as f:
             print(f'File2: {file_name}')
-            for line in f:
-                line_num += 1
-                print(f'{line_num}: {line.strip()}')
+            content = f.read()
+            kk  = remove_comments(content)
+            # print("@@kk", kk)
+            lines = kk.split('\n')  # 파일의 내용을 줄 단위로 분할하여 리스트로 저장
+            # 사용 예시
+            lines = remove_lines_with_substrings(lines)
+            var_key_map = generate_table_db_map(lines)
+            print("@@JJ2", var_key_map)
+
+            # for line in f:
+            #     line_num += 1
+            #     print(f'{line_num}: {line.strip()}')
 
 
     except FileNotFoundError:
