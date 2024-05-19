@@ -1,9 +1,21 @@
 from __future__ import print_function
 import sqlparse
 import re
+import os
 from collections import namedtuple
 from sqlparse.sql import IdentifierList, Identifier, Function
 from sqlparse.tokens import Keyword, DML, Punctuation
+from datetime import datetime
+
+path = "Z:\\PycharmProjects\\gram_prj\\TEST_FILE\\aaa"
+
+local_vars = {}
+STRD_DT = datetime.now().strftime('%Y%m%d')
+
+w_file_nm = "test_anlyze_kkk_10.dat"
+if os.path.exists(w_file_nm):
+  os.remove(w_file_nm)
+
 
 TableReference = namedtuple(
     "TableReference", ["schema", "name", "alias", "is_function"]
@@ -112,8 +124,8 @@ def generate_table_db_map(file):
 
     for line in file:
         # print("tbl_func_line223", line)
-        if ('=' in line and line.count('=') == 1 and '(' not in line and '\\' not in line and 'WHERE ' not in line.upper() and 'ON ' not in line.upper() and 'AND' not in line.upper()
-                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper() and 'END' not in line.upper() and 'SAVE_DIR' not in line.upper()  )    :  #
+        if ('=' in line and line.count('=') == 1  and '\\' not in line and 'WHERE ' not in line.upper() and 'ON ' not in line.upper() and 'AND' not in line.upper()
+                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper() and 'END' not in line.upper() and 'SAVE_DIR' not in line.upper()  )    :  #and '(' not in line
             # print("tbl_func_line11", line)
             # print("###generate_table_db_map1", line)
             var_name, value = line.split('=')
@@ -236,6 +248,116 @@ def update_save_dir(lines):
         if not ("save_dir" in line and "=" in line):
             result.append(line)
     return result
+
+
+def extract_df_vars(text):
+    """
+    Python 코드에서 'df_' 로 시작하고 공백, '.', '=' 문자로 끝나는 변수명을 추출합니다.
+
+    Args:
+        text (str): 분석할 Python 코드 문자열
+
+    Returns:
+        list: 추출된 'df_' 변수명 목록
+    """
+    matches = re.findall(r'df_[^\s.=]+', text)
+    return matches[0]
+
+def write_to_file(file_path, file_name, df_vars, TB_TYPE_CD, line ):
+  global w_file_nm
+  global path
+  # print("pathpath",path)
+  # print("file_path",file_path )
+  #relative_path = os.path.relpath(file_path, path )
+  with open(w_file_nm, mode = 'a') as f:
+    f.write(f"{STRD_DT}|{file_path}|{file_name}|{df_vars}|{TB_TYPE_CD}|{line}\n")
+
+
+def get_df_mapping(file_path, file_name,lines):
+
+    result = []
+    df_vars = "None"
+    df_vars_line_num = 0
+    df_vars_chk = False
+    spark_sql_chk = False
+    line_num = 0
+    for line in lines:
+        line_num = line_num + 1
+        if  line.startswith("df_") :
+            df_vars = extract_df_vars(line)
+            print("@@@###df_vars", df_vars, line)
+            df_vars_line_num = line_num
+            df_vars_chk = True
+            # print("###get_df_mapping1", df_vars, line)
+        # if  "INSERT " in line.upper() :
+        #     print("###get_df_mapping2", df_vars, line)
+        # if  "WITH " in line.upper() :
+        #     print("###get_df_mapping3", df_vars, line)
+        # if  "FROM " in line.upper() :
+        #     print("###get_df_mapping4", df_vars, line)
+        # if  "JOIN " in line.upper() :
+        #     print("###get_df_mapping5", df_vars, line)
+
+        TB_TYPE_CD = "###"
+        if "CREATE OR REPLACE" in line.upper() and "VIEW" in line.upper():
+            TB_TYPE_CD = "VIEW"
+        if "CREATE " in line.upper() and "TABLE " in line.upper():
+            TB_TYPE_CD = "CREATE"
+        if "DROP " in line.upper():
+            TB_TYPE_CD = "DROP"
+        if "TEMPVIEW " in line.upper():
+            TB_TYPE_CD = "TEMPVIEW"
+        if "ALTER " in line.upper():
+            TB_TYPE_CD = "ALTER"
+        if "INSERTINTO" in line.upper():
+            TB_TYPE_CD = "INSERTINTO"
+        if "INSERT " in line.upper():
+            TB_TYPE_CD = "INSERT"
+        #if "LIKE " in line.upper() and "RLIKE " not in line.upper():
+        #    TB_TYPE_CD = "LIKE"
+        if "FROM " in line.upper():
+            TB_TYPE_CD = "FROM"
+        if "JOIN " in line.upper():
+            TB_TYPE_CD = "JOIN"
+        if "SAVE_DIR" in line.upper():
+            TB_TYPE_CD = "SAVE"
+        if ".SAVE" in line.upper():
+            TB_TYPE_CD = "SAVE"
+        if "LOCATION " in line.upper() and "_LOCATION" not in line.upper():
+            TB_TYPE_CD = "LOCATION"
+        if "READ.PARQUET " in line.upper():
+            TB_TYPE_CD = "READ.PARQUET"
+        if "CREATEORREPLACETEMPVIEW" in line.upper():
+            TB_TYPE_CD = "TEMP_VIEW"
+
+        #if "WITH " in line.upper():
+        #    TB_TYPE_CD = "WITH_TEMP"
+
+        # df_vars_line_num != line_num and spark_sql_chk :
+        #    df_vars_line_num = line_num
+        #    df_vars = "None" + "_" + str(df_vars_line_num)
+
+        #if "None" not in df_vars:
+
+        if "spark.sql(" in line and spark_sql_chk == False :
+            spark_sql_chk = True
+            df_vars_line_num = line_num
+            df_vars = "None" + "_" + str(df_vars_line_num)
+            print("##df_vars_line1", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+
+        if '""")' in line and spark_sql_chk:
+            spark_sql_chk = False
+            df_vars_chk = False
+            df_vars_line_num = line_num
+            # print("##df_vars_line", "end", df_vars_line_num, spark_sql_chk, line)
+            print("##df_vars_line2", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+
+        if TB_TYPE_CD != "###":
+            write_to_file(file_path, file_name, df_vars, TB_TYPE_CD,  line)
+            print("###get_df_mapping6", file_path, file_name, df_vars, TB_TYPE_CD, "spark_sql_chk-", spark_sql_chk, df_vars_line_num, line)
+            print("##df_vars_line3", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+    return result
+
 
 
 # sql_query = "SELECT * FROM table1 JOIN (SELECT * FROM table2) subquery ON table1.id = subquery.id"
@@ -554,4 +676,4 @@ if __name__ == '__main__':
         table_schema = table.split('.')[0]
         if table_schema in schema_list:
             schema_exists_list.append(table)
-            #print(f"{table} - Schema exis
+            #print(f"{table} - Schema ex

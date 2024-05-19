@@ -8,7 +8,7 @@ from tbl_func import *
 from datetime import datetime
 # path = "Z:\\총통합\\88.회사\\LDAS 제안서 작업\\분석\\업무분석\\20210531\\20210531"
 path = "Z:\\PycharmProjects\\gram_prj\\TEST_FILE\\aaa"
-
+#path = "Z:\\PycharmProjects\\gram_prj\\OASIS\\Oasis\\Oasis-Cloud-Trans\\oasiscloud\\workload"
 
 def print_file_contents(file_path, file_name):
     full_file_path = os.path.join(file_path, file_name)
@@ -49,11 +49,15 @@ def print_file_contents(file_path, file_name):
             #문자열 리스트의 각 항목을 확인하여 행 마지막에 \가 있는 경우 한 줄로 합칩니다.
             combined_lines = combine_lines_with_backslash(lines)
             combined_lines2 = update_save_dir(combined_lines)
+            relative_path = os.path.relpath(file_path, path)
+            get_df_mapping_rsult = get_df_mapping(relative_path, file_name,combined_lines2)
             #print("combined_lines", combined_lines)
             line_num = 0
             for line in combined_lines2:
                 line_num = line_num + 1
-                print("@@combined_lines2", line_num, line)
+                if "'('"   in line:  # 텍스트 확인용
+                    pass
+                #print("@@combined_lines2", line_num, line)
 
     except FileNotFoundError:
         print(f'File not found: {full_file_path}')
@@ -72,4 +76,3 @@ for dir_path, dir_names, file_names in os.walk(path):
             file_name_with_path = os.path.join(dir_path, file_name)
             # print(f"File: {file_name_with_path}")
             print_file_contents(dir_path, file_name)
- 
