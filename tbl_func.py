@@ -277,17 +277,20 @@ def get_df_mapping(file_path, file_name,lines):
 
     result = []
     df_vars = "None"
-    df_vars_line_num = 0
     df_vars_chk = False
+    df_vars_line_num = 0
     spark_sql_chk = False
     line_num = 0
     for line in lines:
         line_num = line_num + 1
-        if  line.startswith("df_") :
+        if  line.startswith("df_") and ("spark.sql" in line  or "createOrReplaceTempView" in line or "save" in line  or ".union(" in line):
             df_vars = extract_df_vars(line)
-            print("@@@###df_vars", df_vars, line)
             df_vars_line_num = line_num
             df_vars_chk = True
+
+        if  "spark.sql(" in line :
+            spark_sql_chk = True
+
             # print("###get_df_mapping1", df_vars, line)
         # if  "INSERT " in line.upper() :
         #     print("###get_df_mapping2", df_vars, line)
@@ -329,6 +332,8 @@ def get_df_mapping(file_path, file_name,lines):
             TB_TYPE_CD = "READ.PARQUET"
         if "CREATEORREPLACETEMPVIEW" in line.upper():
             TB_TYPE_CD = "TEMP_VIEW"
+        if "READ.PARQUET " in line.upper():
+            TB_TYPE_CD = "READ.PARQUET"
 
         #if "WITH " in line.upper():
         #    TB_TYPE_CD = "WITH_TEMP"
@@ -337,25 +342,35 @@ def get_df_mapping(file_path, file_name,lines):
         #    df_vars_line_num = line_num
         #    df_vars = "None" + "_" + str(df_vars_line_num)
 
-        #if "None" not in df_vars:
-
-        if "spark.sql(" in line and spark_sql_chk == False :
-            spark_sql_chk = True
+        if "createOrReplaceTempView" in line :
+            print("@@@###df_vars", "df_vars_chk-", df_vars_chk,  df_vars, df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+        if spark_sql_chk == True and df_vars_chk == False and "None"  in df_vars:
+            pass
+        elif df_vars_chk == True:
+            pass
+        else:
             df_vars_line_num = line_num
             df_vars = "None" + "_" + str(df_vars_line_num)
-            print("##df_vars_line1", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+            #print("##df_vars_line1", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
 
         if '""")' in line and spark_sql_chk:
             spark_sql_chk = False
+            df_vars = "#"
             df_vars_chk = False
             df_vars_line_num = line_num
             # print("##df_vars_line", "end", df_vars_line_num, spark_sql_chk, line)
-            print("##df_vars_line2", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+            #print("##df_vars_line2", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
 
         if TB_TYPE_CD != "###":
             write_to_file(file_path, file_name, df_vars, TB_TYPE_CD,  line)
             print("###get_df_mapping6", file_path, file_name, df_vars, TB_TYPE_CD, "spark_sql_chk-", spark_sql_chk, df_vars_line_num, line)
-            print("##df_vars_line3", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
+            #print("##df_vars_line3", "start", df_vars_line_num, df_vars, "spark_sql_chk-", spark_sql_chk, line)
+
+
+        #df_TMP_F_SKTENTLT_T0210 , createOrReplaceTempView 이후, df_vars 이 남아 있어, 초기화
+        if df_vars_chk and"createOrReplaceTempView" in line :
+           df_vars = "None" + "_" + str(df_vars_line_num)
+
     return result
 
 
@@ -676,4 +691,4 @@ if __name__ == '__main__':
         table_schema = table.split('.')[0]
         if table_schema in schema_list:
             schema_exists_list.append(table)
-            #print(f"{table} - Schema ex
+            #print(f"{table} -
