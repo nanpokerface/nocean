@@ -96,9 +96,12 @@ def get_name(var_name, value):
     Returns:
         str: 추출된 스키마 이름
     """
+    print("get_name2", var_name, value)
     schema_name = value
-    if '.' in value:
+    if '.' in value and '/' not in value:
         schema_name = value.split('.')[1]
+    if '.' in value and '/'  in value:
+        schema_name = value.replace('DwCfg.', '').replace('MartCfg.', '').replace('Common.', '')
     schema_name = schema_name.replace('{', '').replace('}', '')
     if "DB" in var_name:
         if "_" in schema_name:
@@ -283,10 +286,11 @@ def get_df_mapping(file_path, file_name,lines):
     line_num = 0
     for line in lines:
         line_num = line_num + 1
-        if  line.startswith("df_") and ("spark.sql" in line  or "createOrReplaceTempView" in line or "save" in line  or ".union(" in line):
+        if  line.lstrip().startswith("df_") and ("spark.sql" in line  or "createOrReplaceTempView" in line or "save" in line  or ".union(" in line  or ".write.mode(" in line):
             df_vars = extract_df_vars(line)
             df_vars_line_num = line_num
             df_vars_chk = True
+            #print("$$나와야하지", df_vars, line)
 
         if  "spark.sql(" in line :
             spark_sql_chk = True
@@ -332,8 +336,10 @@ def get_df_mapping(file_path, file_name,lines):
             TB_TYPE_CD = "READ.PARQUET"
         if "CREATEORREPLACETEMPVIEW" in line.upper():
             TB_TYPE_CD = "TEMP_VIEW"
-        if "READ.PARQUET " in line.upper():
-            TB_TYPE_CD = "READ.PARQUET"
+        if ".UNION(" in line.upper():
+            TB_TYPE_CD = "DF_UNION"
+        if ".WRITE.MODE(" in line.upper():
+            TB_TYPE_CD = "WRITE_WRITE"
 
         #if "WITH " in line.upper():
         #    TB_TYPE_CD = "WITH_TEMP"
@@ -399,6 +405,9 @@ def remove_comments(file):
 
     for line in file:
         if line.strip().startswith('#') or line.strip().startswith('--'):
+            # 줄라인 유지하기 위해 잘안되네?
+            # line = " "
+            # filtered_lines.append(" ")
             continue
         if line.strip().startswith('spark.sql'):
             # 다음 구문의 문제점은 , '#' A1_SVC_AGRMT_ID   같은 것도 지운다
@@ -691,4 +700,4 @@ if __name__ == '__main__':
         table_schema = table.split('.')[0]
         if table_schema in schema_list:
             schema_exists_list.append(table)
-            #print(f"{table} -
+            #print(f"{table} - Schema e
