@@ -96,7 +96,7 @@ def get_name(var_name, value):
     Returns:
         str: 추출된 스키마 이름
     """
-    print("get_name2", var_name, value)
+    #print("get_name2", var_name, value)
     schema_name = value
     if '.' in value and '/' not in value:
         schema_name = value.split('.')[1]
@@ -109,7 +109,7 @@ def get_name(var_name, value):
                 schema_name = "IP_PLF"
             else:
                 schema_name = schema_name.split('_')[0]
-    print("@@get_name", schema_name)
+    #print("@@get_name", schema_name)
     return schema_name
 
 def generate_table_db_map(file):
@@ -128,7 +128,7 @@ def generate_table_db_map(file):
     for line in file:
         # print("tbl_func_line223", line)
         if ('=' in line and line.count('=') == 1  and '\\' not in line and 'WHERE ' not in line.upper() and 'ON ' not in line.upper() and 'AND' not in line.upper()
-                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper() and 'END' not in line.upper() and 'SAVE_DIR' not in line.upper()  )    :  #and '(' not in line
+                and 'CASE ' not in line.upper()  and 'WHEN ' not in line.upper() and 'END' not in line.upper() and 'SAVE_DIR' not in line.upper()  and 'READ.PARQUET' not in line.upper())    :  #and '(' not in line
             # print("tbl_func_line11", line)
             # print("###generate_table_db_map1", line)
             var_name, value = line.split('=')
@@ -266,14 +266,134 @@ def extract_df_vars(text):
     matches = re.findall(r'df_[^\s.=]+', text)
     return matches[0]
 
-def write_to_file(file_path, file_name, df_vars, TB_TYPE_CD, line ):
+def write_to_file(file_path, file_name,  line_num, df_vars, TB_TYPE_CD, tbl_nm,  line ):
   global w_file_nm
   global path
   # print("pathpath",path)
   # print("file_path",file_path )
   #relative_path = os.path.relpath(file_path, path )
   with open(w_file_nm, mode = 'a') as f:
-    f.write(f"{STRD_DT}|{file_path}|{file_name}|{df_vars}|{TB_TYPE_CD}|{line}\n")
+    f.write(f"{STRD_DT}|{file_path}|{file_name}|{df_vars}|{line_num}|{TB_TYPE_CD}|{tbl_nm}|{line}\n")
+
+schema_list = ["ABL", "ABZ","ACC","ACO","ACP",
+"ACR","ACS","ACT","AEX","AID",
+"AIP","ANW","AST","ASWG","BCM",
+"BCR","BDWSOR","BIDM","BIDW","BIODS",
+"BMR","BMT","BSM","BSW","BTVPLUS","CDR",
+"CEI","COM","CYBERCS","EXT","FOMS","ICT","ICTANLY",
+"ICTFAMILY","ICTFIN","IP_PLF","KDMC","PODS","PROM","RACE","RTN",
+"RWK","SAP","SKA","SKT","SMS","SSONE","SWG","SWR",
+"TAS","TBMT","TCM","TDBM","TDBR","TSDR","TVPS","VCP"
+,"CDC", "STG","TMP"
+]
+schema_f_list = ["TAST"]
+
+def check_schema(table, line_num, line):
+    if len(table) <= 2:
+        return False
+    else:
+        schema = table.split(".")[0]
+        schema = schema.replace("{", "")
+        schema = schema.replace("}", "")
+        # DB_ 제거
+        schema = re.sub(r'^DB_', '', schema)
+
+        if re.search('[가-힣]', schema):
+            return False
+
+        if "("+table in line:
+            return False
+
+        if "CASE WHEN "+table in line.upper():
+            return False
+
+        try:
+            if len(table.split(".")[1]) < 3:
+                return False
+        except Exception as e:
+            pass
+
+
+        for sch in schema_f_list:
+            if schema.startswith(sch) or schema.startswith("{" + sch):
+                # print("####table되나", table)
+                return False
+
+        for sch in schema_list:
+            schema_r= schema.split("_")
+            if "IP_PLF" in schema:
+                schema = "IP_PLF"
+            else :
+                schema = schema_r[0]
+            # print("####table되나", "schema-",schema, "-", table, line_num, line)
+            if schema.startswith(sch) and schema.endswith(sch):
+                return True
+    return False
+
+
+def get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line ):
+  global w_file_nm
+  global path
+  # print("pathpath",path)
+  # print("file_path",file_path )
+  #relative_path = os.path.relpath(file_path, path )
+  re_tbl_nm_list =[]
+
+  if TB_TYPE_CD == "TEMP_VIEW" or TB_TYPE_CD == "DF_UNION":
+      tbl_nm = line.split("(")[1]
+      re_tbl_nm_list.append(tbl_nm)
+  elif TB_TYPE_CD == "SAVE"   or TB_TYPE_CD == "READ_PARQUET":
+      tbl_nm = tbl_nm_list[0]
+      tbl_nm = tbl_nm.replace("/",".")
+      re_tbl_nm_list.append(tbl_nm)
+  elif TB_TYPE_CD == "WRITE_MODE" :
+      tbl_nm = tbl_nm_list[0]
+      tbl_nm = tbl_nm.split("/")[1] + "." + tbl_nm.split("/")[2]
+      re_tbl_nm_list.append(tbl_nm)
+  else :
+      for tbl_nm in tbl_nm_list:
+          print("##tbl_nm", tbl_nm)
+          re_tbl_nm_list.append(tbl_nm)
+
+  re_tbl_nm_list2 =[]
+  for index, tbl_nm in enumerate(re_tbl_nm_list):
+      tbl_nm = tbl_nm.replace("'", "")
+      tbl_nm = tbl_nm.replace('"', '')
+      tbl_nm = tbl_nm.replace("{", "")
+      tbl_nm = tbl_nm.replace('}', '')
+      tbl_nm = tbl_nm.replace("(", "")
+      tbl_nm = tbl_nm.replace(')', '')
+      tbl_nm = tbl_nm.upper()
+      re_tbl_nm_list2.append(tbl_nm)
+
+  re_tbl_nm_list3 =[]
+  for index, tbl_str in enumerate(re_tbl_nm_list2):
+      if "." in tbl_str:
+          schema_name = tbl_str.split(".")[0]
+          tbl_nm = tbl_str.split(".")[1]
+          if "_" in schema_name:
+              if "IP_PLF" in schema_name:
+                  schema_name = "IP_PLF"
+              else:
+                  schema_name = schema_name.split("_")[0]
+          tbl_str = schema_name + "." + tbl_nm
+      re_tbl_nm_list3.append(tbl_str)
+
+  re_tbl_nm_list4 = []
+  for index, tbl_str in enumerate(re_tbl_nm_list3):
+      if TB_TYPE_CD != "TEMP_VIEW"  and TB_TYPE_CD !=  "SAVE" and TB_TYPE_CD != "DF_UNION" and TB_TYPE_CD != "SAVE" and TB_TYPE_CD !=  "WRITE_MODE"  and TB_TYPE_CD !=  "READ_PARQUET" :
+          result = check_schema(tbl_str, index, line)
+          if result :
+              re_tbl_nm_list4.append(tbl_str)
+      else :
+          re_tbl_nm_list4.append(tbl_str)
+
+
+
+  print("$$$get_tbl_nm", file_path, file_name, df_vars, TB_TYPE_CD, re_tbl_nm_list4, line)
+  return re_tbl_nm_list4
+
+
 
 
 def get_df_mapping(file_path, file_name,lines):
@@ -285,8 +405,9 @@ def get_df_mapping(file_path, file_name,lines):
     spark_sql_chk = False
     line_num = 0
     for line in lines:
+        line_ori = line
         line_num = line_num + 1
-        if  line.lstrip().startswith("df_") and ("spark.sql" in line  or "createOrReplaceTempView" in line or "save" in line  or ".union(" in line  or ".write.mode(" in line):
+        if  line.lstrip().startswith("df_") and ("spark.sql" in line  or "spark.read.parquet" in line or "createOrReplaceTempView" in line or "save" in line  or ".union(" in line  or ".write.mode(" in line):
             df_vars = extract_df_vars(line)
             df_vars_line_num = line_num
             df_vars_chk = True
@@ -312,8 +433,7 @@ def get_df_mapping(file_path, file_name,lines):
             TB_TYPE_CD = "CREATE"
         if "DROP " in line.upper():
             TB_TYPE_CD = "DROP"
-        if "TEMPVIEW " in line.upper():
-            TB_TYPE_CD = "TEMPVIEW"
+
         if "ALTER " in line.upper():
             TB_TYPE_CD = "ALTER"
         if "INSERTINTO" in line.upper():
@@ -332,22 +452,30 @@ def get_df_mapping(file_path, file_name,lines):
             TB_TYPE_CD = "SAVE"
         if "LOCATION " in line.upper() and "_LOCATION" not in line.upper():
             TB_TYPE_CD = "LOCATION"
+
         if "READ.PARQUET " in line.upper():
-            TB_TYPE_CD = "READ.PARQUET"
+            print("$$$READ_PARQUET@@",TB_TYPE_CD , line )
+
+        if "read.parquet" in line :
+            TB_TYPE_CD = "READ_PARQUET"
+
         if "CREATEORREPLACETEMPVIEW" in line.upper():
             TB_TYPE_CD = "TEMP_VIEW"
+
         if ".UNION(" in line.upper():
             TB_TYPE_CD = "DF_UNION"
         if ".WRITE.MODE(" in line.upper():
-            TB_TYPE_CD = "WRITE_WRITE"
+            TB_TYPE_CD = "WRITE_MODE"
 
-        #if "WITH " in line.upper():
+            #if "WITH " in line.upper():
         #    TB_TYPE_CD = "WITH_TEMP"
 
         # df_vars_line_num != line_num and spark_sql_chk :
         #    df_vars_line_num = line_num
         #    df_vars = "None" + "_" + str(df_vars_line_num)
 
+        if "read.parquet" in line :
+            print("$$$READ_PARQUET",TB_TYPE_CD , line )
         if "createOrReplaceTempView" in line :
             print("@@@###df_vars", "df_vars_chk-", df_vars_chk,  df_vars, df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
         if spark_sql_chk == True and df_vars_chk == False and "None"  in df_vars:
@@ -367,9 +495,53 @@ def get_df_mapping(file_path, file_name,lines):
             # print("##df_vars_line", "end", df_vars_line_num, spark_sql_chk, line)
             #print("##df_vars_line2", "start", df_vars_line_num, "spark_sql_chk-", spark_sql_chk, line)
 
+
+        if TB_TYPE_CD == "###" :
+            pattern = re.compile(r'\w+\}?\.\w+')
+            if re.search(pattern, line):
+                match = pattern.findall(line)
+                if match:
+                    print("@@@@ETC", match, line)
+                    TB_TYPE_CD = "ETC"
+
+        if "BSZZ_PPPP_C" in line:
+            print("@@@@확인", file_path, file_name, df_vars,  line_num, TB_TYPE_CD, tbl_str, line)
+
         if TB_TYPE_CD != "###":
-            write_to_file(file_path, file_name, df_vars, TB_TYPE_CD,  line)
-            print("###get_df_mapping6", file_path, file_name, df_vars, TB_TYPE_CD, "spark_sql_chk-", spark_sql_chk, df_vars_line_num, line)
+            tbl_nm_list = []
+            if TB_TYPE_CD == "WRITE_MODE":
+                path_find_pattern = re.compile(
+                    r'/\w+\S+[\"|\']')  # re.compile( r"\{(.+?)\}[\.|\/](\w*)")   # re.compile( r"\{(.+?)\}.(\w*)")                # re.compile(r"\{(.+?)\}.(\w*)")
+                tbl_nm_list = path_find_pattern.findall(line)
+
+            elif TB_TYPE_CD == "SAVE"  or TB_TYPE_CD == "READ_PARQUET" :
+                path_find_pattern = re.compile(
+                    r'\w+}/\w+')  # re.compile( r"\{(.+?)\}[\.|\/](\w*)")   # re.compile( r"\{(.+?)\}.(\w*)")                # re.compile(r"\{(.+?)\}.(\w*)")
+                tbl_nm_list = path_find_pattern.findall(line)
+            elif TB_TYPE_CD == "ETC":
+                pattern = re.compile(r'\w+\}?\.\w+')
+                if re.search(pattern, line):
+                    match = pattern.findall(line)
+                    if match:
+                        tbl_nm_list = match
+            else :
+                tbl_find_pattern = re.compile(
+                    r'\{?[\w.]+\}?\.\{?\w+\}?')  # re.compile( r"\{(.+?)\}[\.|\/](\w*)")   # re.compile( r"\{(.+?)\}.(\w*)")                # re.compile(r"\{(.+?)\}.(\w*)")
+                # pattern =  re.compile(r'\{(\w+)\}\.(\w+)\b')
+                # print("##line ", line)
+                tbl_find_line = line
+                tbl_find_line = tbl_find_line.replace("spark.sql", "")
+
+                if re.search(tbl_find_pattern, tbl_find_line):
+                    # print("@@##line ", line_num, tbl_find_line)
+                    tbl_nm_list = tbl_find_pattern.findall(tbl_find_line)
+                    #print("##tbl_nm_list", tbl_nm_list)
+
+
+            tbl_nm_list = get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line)
+            for index, tbl_str in enumerate(tbl_nm_list):
+                write_to_file(file_path, file_name, df_vars,  line_num, TB_TYPE_CD, tbl_str, line)
+                print("###get_df_mapping6", file_path, file_name, df_vars, line_num, TB_TYPE_CD,  tbl_str, "spark_sql_chk-", spark_sql_chk, df_vars_line_num, line)
             #print("##df_vars_line3", "start", df_vars_line_num, df_vars, "spark_sql_chk-", spark_sql_chk, line)
 
 
@@ -700,4 +872,4 @@ if __name__ == '__main__':
         table_schema = table.split('.')[0]
         if table_schema in schema_list:
             schema_exists_list.append(table)
-            #print(f"{table} - Schema e
+            #print(f"{table} - Schema ex
