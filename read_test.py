@@ -1,5 +1,5 @@
 import re
-
+ 
 # SAMPLE_TEST.py 파일 읽기 (인코딩: utf-8)
 with open("SAMPLE_TEST.py", "r", encoding="utf-8") as file:
     code = file.read()
@@ -93,4 +93,4 @@ for match in start_match:
 
 
 
-# DataFrame �
+# DataFrame �

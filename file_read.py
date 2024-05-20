@@ -8,7 +8,7 @@ from tbl_func import *
 from datetime import datetime
 # path = "Z:\\총통합\\88.회사\\LDAS 제안서 작업\\분석\\업무분석\\20210531\\20210531"
 path = "Z:\\PycharmProjects\\gram_prj\\TEST_FILE\\aaa"
-#path = "Z:\\PycharmProjects\\gram_prj\\OASIS\\Oasis\\Oasis-Cloud-Trans\\oasiscloud\\workload"
+# path = "Z:\\PycharmProjects\\gram_prj\\OASIS\\Oasis\\Oasis-Cloud-Trans\\oasiscloud\\workload"
 
 def print_file_contents(file_path, file_name):
     full_file_path = os.path.join(file_path, file_name)
