@@ -284,7 +284,7 @@ schema_list = ["ABL", "ABZ","ACC","ACO","ACP",
 "ICTFAMILY","ICTFIN","IP_PLF","KDMC","PODS","PROM","RACE","RTN",
 "RWK","SAP","SKA","SKT","SMS","SSONE","SWG","SWR",
 "TAS","TBMT","TCM","TDBM","TDBR","TSDR","TVPS","VCP"
-,"CDC", "STG","TMP"
+,"CDC", "STG","TMP", "TEMPVIEW"
 ]
 schema_f_list = ["TAST"]
 
@@ -352,8 +352,12 @@ def get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line ):
       re_tbl_nm_list.append(tbl_nm)
   else :
       for tbl_nm in tbl_nm_list:
-          print("##tbl_nm", tbl_nm)
-          re_tbl_nm_list.append(tbl_nm)
+          re_tbl_nm = tbl_nm
+          if "TEMPVIEW" in tbl_nm:
+              re_tbl_nm = tbl_nm.replace("TEMPVIEW", "")
+          if re_tbl_nm in line.upper():
+              print("##%%%%TEMPVIEW", tbl_nm)
+              re_tbl_nm_list.append(tbl_nm)
 
   re_tbl_nm_list2 =[]
   for index, tbl_nm in enumerate(re_tbl_nm_list):
@@ -404,6 +408,8 @@ def get_df_mapping(file_path, file_name,lines):
     df_vars_line_num = 0
     spark_sql_chk = False
     line_num = 0
+    temp_view_list = []
+    tbl_nm_list = []
     for line in lines:
         line_ori = line
         line_num = line_num + 1
@@ -461,6 +467,9 @@ def get_df_mapping(file_path, file_name,lines):
 
         if "CREATEORREPLACETEMPVIEW" in line.upper():
             TB_TYPE_CD = "TEMP_VIEW"
+            tbl_nm  = line.split("(")[1].upper()
+            temp_view_list.append(tbl_nm)
+            print("&&&&&&TEMP_VIEW", "temp_view_list-", temp_view_list, "tbl_nm-", tbl_nm, line)
 
         if ".UNION(" in line.upper():
             TB_TYPE_CD = "DF_UNION"
@@ -501,14 +510,10 @@ def get_df_mapping(file_path, file_name,lines):
             if re.search(pattern, line):
                 match = pattern.findall(line)
                 if match:
-                    print("@@@@ETC", match, line)
+                    #print("@@@@ETC", match, line)
                     TB_TYPE_CD = "ETC"
 
-        if "BSZZ_PPPP_C" in line:
-            print("@@@@확인", file_path, file_name, df_vars,  line_num, TB_TYPE_CD, tbl_str, line)
-
         if TB_TYPE_CD != "###":
-            tbl_nm_list = []
             if TB_TYPE_CD == "WRITE_MODE":
                 path_find_pattern = re.compile(
                     r'/\w+\S+[\"|\']')  # re.compile( r"\{(.+?)\}[\.|\/](\w*)")   # re.compile( r"\{(.+?)\}.(\w*)")                # re.compile(r"\{(.+?)\}.(\w*)")
@@ -537,6 +542,27 @@ def get_df_mapping(file_path, file_name,lines):
                     tbl_nm_list = tbl_find_pattern.findall(tbl_find_line)
                     #print("##tbl_nm_list", tbl_nm_list)
 
+
+
+            if TB_TYPE_CD != "TEMP_VIEW":
+                print("@@@@확인1", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-", tbl_nm_list, line)
+                for index, tbl_nm in enumerate(temp_view_list):
+                    tbl_nm = tbl_nm.replace("'", "")
+                    tbl_nm = tbl_nm.replace('"', '')
+                    tbl_nm = tbl_nm.replace("{", "")
+                    tbl_nm = tbl_nm.replace('}', '')
+                    tbl_nm = tbl_nm.replace("(", "")
+                    tbl_nm = tbl_nm.replace(')', '')
+                    tbl_nm = tbl_nm.upper()
+                    if tbl_nm in line.upper():
+                        tbl_nm = "TEMPVIEW" + "." + tbl_nm
+                        tbl_nm_list.append(tbl_nm)
+                        TB_TYPE_CD = "TEMP_VIEW_USE"
+                        print("@@@@temp확인", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-", tbl_nm, line)
+
+
+
+            print("@@@@확인2", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-",tbl_nm_list, line)
 
             tbl_nm_list = get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line)
             for index, tbl_str in enumerate(tbl_nm_list):
@@ -869,7 +895,4 @@ if __name__ == '__main__':
 
 
     for table in table_list2_upper:
-        table_schema = table.split('.')[0]
-        if table_schema in schema_list:
-            schema_exists_list.append(table)
-            #print(f"{table} - Schema ex
+        table_schema = table.split(
