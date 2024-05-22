@@ -7,7 +7,7 @@ from sqlparse.sql import IdentifierList, Identifier, Function
 from sqlparse.tokens import Keyword, DML, Punctuation
 from datetime import datetime
 
-path = "Z:\\PycharmProjects\\gram_prj\\TEST_FILE\\aaa"
+#ath = "Z:\\PycharmProjects\\gram_prj\\TEST_FILE\\aaa"
 
 local_vars = {}
 STRD_DT = datetime.now().strftime('%Y%m%d')
@@ -284,7 +284,7 @@ schema_list = ["ABL", "ABZ","ACC","ACO","ACP",
 "ICTFAMILY","ICTFIN","IP_PLF","KDMC","PODS","PROM","RACE","RTN",
 "RWK","SAP","SKA","SKT","SMS","SSONE","SWG","SWR",
 "TAS","TBMT","TCM","TDBM","TDBR","TSDR","TVPS","VCP"
-,"CDC", "STG","TMP", "TEMPVIEW"
+,"CDC", "STG","TMP", "TEMPVIEW","CDC","STG","STG_CATV"
 ]
 schema_f_list = ["TAST"]
 
@@ -352,12 +352,8 @@ def get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line ):
       re_tbl_nm_list.append(tbl_nm)
   else :
       for tbl_nm in tbl_nm_list:
-          re_tbl_nm = tbl_nm
-          if "TEMPVIEW" in tbl_nm:
-              re_tbl_nm = tbl_nm.replace("TEMPVIEW", "")
-          if re_tbl_nm in line.upper():
-              print("##%%%%TEMPVIEW", tbl_nm)
-              re_tbl_nm_list.append(tbl_nm)
+          #print("##tbl_nm", tbl_nm)
+          re_tbl_nm_list.append(tbl_nm)
 
   re_tbl_nm_list2 =[]
   for index, tbl_nm in enumerate(re_tbl_nm_list):
@@ -394,7 +390,7 @@ def get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line ):
 
 
 
-  print("$$$get_tbl_nm", file_path, file_name, df_vars, TB_TYPE_CD, re_tbl_nm_list4, line)
+  #print("$$$get_tbl_nm", file_path, file_name, df_vars, TB_TYPE_CD, re_tbl_nm_list4, line)
   return re_tbl_nm_list4
 
 
@@ -468,8 +464,9 @@ def get_df_mapping(file_path, file_name,lines):
         if "CREATEORREPLACETEMPVIEW" in line.upper():
             TB_TYPE_CD = "TEMP_VIEW"
             tbl_nm  = line.split("(")[1].upper()
+            #tbl_nm = "TEMPVIEW" + "." + tbl_nm
             temp_view_list.append(tbl_nm)
-            print("&&&&&&TEMP_VIEW", "temp_view_list-", temp_view_list, "tbl_nm-", tbl_nm, line)
+            #print("&&&&&&TEMP_VIEW", "temp_view_list-", temp_view_list, "tbl_nm-", tbl_nm, line)
 
         if ".UNION(" in line.upper():
             TB_TYPE_CD = "DF_UNION"
@@ -545,7 +542,7 @@ def get_df_mapping(file_path, file_name,lines):
 
 
             if TB_TYPE_CD != "TEMP_VIEW":
-                print("@@@@확인1", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-", tbl_nm_list, line)
+                #print("@@@@확인1", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-", tbl_nm_list, line)
                 for index, tbl_nm in enumerate(temp_view_list):
                     tbl_nm = tbl_nm.replace("'", "")
                     tbl_nm = tbl_nm.replace('"', '')
@@ -558,16 +555,24 @@ def get_df_mapping(file_path, file_name,lines):
                         tbl_nm = "TEMPVIEW" + "." + tbl_nm
                         tbl_nm_list.append(tbl_nm)
                         TB_TYPE_CD = "TEMP_VIEW_USE"
-                        print("@@@@temp확인", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-", tbl_nm, line)
+                        #print("@@@@temp확인", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-", tbl_nm, line)
 
 
-
-            print("@@@@확인2", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-",tbl_nm_list, line)
+            if "V_BDZZ_EXMP_C" in line:
+                print("@@@@확인2", file_path, file_name, df_vars, line_num, TB_TYPE_CD, "tbl_nm_list-",tbl_nm_list, line)
 
             tbl_nm_list = get_tbl_nm(file_path, file_name, df_vars, TB_TYPE_CD, tbl_nm_list,  line)
             for index, tbl_str in enumerate(tbl_nm_list):
-                write_to_file(file_path, file_name, df_vars,  line_num, TB_TYPE_CD, tbl_str, line)
-                print("###get_df_mapping6", file_path, file_name, df_vars, line_num, TB_TYPE_CD,  tbl_str, "spark_sql_chk-", spark_sql_chk, df_vars_line_num, line)
+                if "TEMP_VIEW" in TB_TYPE_CD:
+                    if "." in tbl_str:
+                        schema_name = tbl_str.split(".")[0]
+                        tbl_str = tbl_str.split(".")[1]
+                if tbl_str in line.replace("}","").upper():
+                    write_to_file(file_path, file_name, df_vars,  line_num, TB_TYPE_CD, tbl_str, line)
+                    print("###get_df_mapping6", file_path, file_name, df_vars, line_num, TB_TYPE_CD,  tbl_str, "spark_sql_chk-", spark_sql_chk,  line)
+                else:
+                    write_to_file(file_path, file_name, "@@##" + df_vars,  line_num, TB_TYPE_CD, tbl_str, line)
+                    print("###get_df_mapping6", file_path, file_name, "@@##" + df_vars, line_num, TB_TYPE_CD,  tbl_str, "spark_sql_chk-", spark_sql_chk, line)
             #print("##df_vars_line3", "start", df_vars_line_num, df_vars, "spark_sql_chk-", spark_sql_chk, line)
 
 
@@ -895,4 +900,7 @@ if __name__ == '__main__':
 
 
     for table in table_list2_upper:
-        table_schema = table.split(
+        table_schema = table.split('.')[0]
+        if table_schema in schema_list:
+            schema_exists_list.append(table)
+            #print(f"{table} - Schema ex
